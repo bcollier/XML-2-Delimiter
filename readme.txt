@@ -6,3 +6,7 @@ Run the program with python xml2delimiter.py
 
 See progress at the log file (that you configured in wpdatawork.cfg).
 
+REQUIREMENTS:
+
+BeautifulSoup
+Progress Bar
