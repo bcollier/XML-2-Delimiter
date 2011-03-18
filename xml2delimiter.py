@@ -49,24 +49,40 @@ def timeline():
 
 #tagattr=1 if there is only one tag and we are pulling the attribute value
 def writeTagContents(tagname, tagattr, soup, endofline, outfile):
-    tag = soup.find(tagname)
+    try:
+        tag = soup.find(tagname)
 
-    if tag:
-        if len(tagattr) > 0:
-            #get the attribute value since this is a single tag
-            if not endofline == 1:
-                outfile.write(tag[tagattr] + delimiter)
+        if tag:
+            if len(tagattr) > 0:
+                #get the attribute value since this is a single tag
+                if not endofline == 1:
+                    if str(tag.attrs).find('deleted') < 0:
+                        outfile.write(tag[tagattr] + delimiter)
+                    else:
+                        outfile.write(delimiter)
+                else:
+                    if str(tag.attrs).find('deleted') < 0:
+                        outfile.write(tag[tagattr] + "\n")
+                    else:
+                        outfile.write("\n")
             else:
-                outfile.write(tag[tagattr] + "\n")
+                if not endofline == 1:
+                    outfile.write(tag.contents[0] + delimiter)
+                else:
+                    outfile.write(tag.contents[0] + "\n")
         else:
-            if not endofline == 1:
-                outfile.write(tag.contents[0] + delimiter)
-            else:
-                outfile.write(tag.contents[0] + "\n")
-    else:
+            outfile.write(delimiter)
+            if debug:
+                log.write('no tag found:' + tagname + ' writing delimiter in soup: ' + smart_str(soup))
+    except:
+        exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
         outfile.write(delimiter)
-        if debug:
-            log.write('no tag found:' + tagname + ' writing delimiter in soup: ' + smart_str(soup))
+        log.write("Error tag with stacktrace: " + str(traceback.print_tb(exceptionTraceback)))
+        log.write(" numberof attributes: " + str(len(tag.attrs)) + "the attributes are: " + str(tag.attrs))
+        log.write('\ntagname:' + tagname + " tagattr: " + tagattr)
+        log.write("\n161 Unexpected error:" + str(sys.exc_info()[0]) + "Line " + str(linecount))
+        errorxmlfile.write(revblock)
+
 
 def getTagContents(tagname, tagattr, soupstring):
     soup = BeautifulSoup(soupstring)
@@ -136,7 +152,7 @@ pageid = ""
 pagecount = 0
 pageRedirect = False
 
-prog = ProgressBar(linecount, numlinesinfile, 100, mode='dynamic', char='#')
+prog = ProgressBar(linecount, numlinesinfile, 100, mode='fixed', char='#')
 
 for txtline in open(xmlfile):
     try:
@@ -153,14 +169,13 @@ for txtline in open(xmlfile):
                     processRevision(cleanString(revblock))
                 except:
                     exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
-                    print 'shit got real dawg.\n'
-                    print str(traceback.print_tb(exceptionTraceback))
-                    log.write("161 Unexpected error:" + str(sys.exc_info()[0]) + "Line " + str(linecount) + ": Error Processing Revision:\n" + revblock)
+                    log.write("Error Processing Revision with stacktrace: " + str(traceback.print_tb(exceptionTraceback)))
+                    log.write("\n161 Unexpected error:" + str(sys.exc_info()[0]) + "Line " + str(linecount) + ": Error Processing Revision:\n" + revblock)
                     errorxmlfile.write(revblock)
-                    #print sys.exc_info()
+                #print sys.exc_info()
 
                 revcount += 1
-                if revcount % 500 == 0:
+                if revcount % 1000 == 0:
                     print prog, '\r',
                     sys.stdout.flush()
                     log.write("percent complete: " +str(round((float(linecount)/float(numlinesinfile))*100,6)))
@@ -210,8 +225,7 @@ for txtline in open(xmlfile):
     except:
         exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
         log.write("207 Wicked Bad error, couldn't process this line even with error catching':" + str(sys.exc_info()[0]) + "Line " + str(linecount)+ '\n')
-        print str(traceback.print_tb(exceptionTraceback))
-        print "line number: " + str(linecount)
+        log.write(str(traceback.print_tb(exceptionTraceback)))
 
 log.write("PROGAM COMPLETE - FINAL STATISTICS:\n")
 log.write("line number " + str(linecount))
