@@ -9,7 +9,7 @@
 #    2. Doesn't pull namespace information, which is very important!
 #    3. Delimiter in config file doesn't work (overwriting it now)
 
-import re, urllib, time, os, ConfigParser, datetime, sys, codecs
+import re, urllib, time, os, ConfigParser, datetime, sys, codecs, traceback
 from BeautifulSoup import BeautifulSoup
 from time import gmtime, strftime
 from progress_bar import ProgressBar
@@ -39,6 +39,7 @@ log.write("CONFIGURATION\nRemove Revisions: " + str(removeIPRevisions) +"\nSTART
 #write file headers
 revfile.write("rev_id" + delimiter + "pageid" + delimiter + "timestamp" + delimiter + "username" + delimiter + "userid" + delimiter + "minoredit" + delimiter + "comment" + delimiter + "text_id\n")
 userfile.write("username" + delimiter + "userid\n")
+pagefile.write("page_title" + delimiter + "pageid" + delimiter + "isredirect\n")
 
 #print  'time ' + str(datetime.datetime.now().second)
 
@@ -59,7 +60,7 @@ def writeTagContents(tagname, tagattr, soup, endofline, outfile):
                 outfile.write(tag[tagattr] + "\n")
         else:
             if not endofline == 1:
-                outfile.write(tag.contents[0] + "\n")
+                outfile.write(tag.contents[0] + delimiter)
             else:
                 outfile.write(tag.contents[0] + "\n")
     else:
@@ -89,7 +90,7 @@ def processRevision(revblock):
             print "Removed revision from IP:" + smart_str(soup.find('ip').contents[0])
     else:
 
-        revxml.write(revblock)
+        #revxml.write(revblock)
 
         writeTagContents('id', "", soup, 0, revfile)
         revfile.write(pageid + delimiter)
@@ -101,10 +102,7 @@ def processRevision(revblock):
 
             #print contributorblock
             if contributorblock.find('username'):
-                try:
-                    writeTagContents('username',"",contributorblock, 0, revfile)
-                except:
-                    print "error writing"
+                writeTagContents('username',"",contributorblock, 0, revfile)
                 writeTagContents('id',"",contributorblock, 0, revfile)
 
                 writeTagContents('username',"",contributorblock, 0, userfile)
@@ -154,6 +152,9 @@ for txtline in open(xmlfile):
                 try:
                     processRevision(cleanString(revblock))
                 except:
+                    exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
+                    print 'shit got real dawg.\n'
+                    print str(traceback.print_tb(exceptionTraceback))
                     log.write("161 Unexpected error:" + str(sys.exc_info()[0]) + "Line " + str(linecount) + ": Error Processing Revision:\n" + revblock)
                     errorxmlfile.write(revblock)
                     #print sys.exc_info()
@@ -181,6 +182,11 @@ for txtline in open(xmlfile):
                 elif txtline.find("</page>") > 0:
                     ispageblock = False
                     isknownline = True
+                    if pageRedirect:
+                        pagefile.write('1' + delimiter)
+                        pageRedirect = False
+                    else:
+                        pagefile.write('0' + delimiter)
 
                 if ispageblock:
                     if txtline.find('<title>') > 0 and txtline.find('</title>') > 0:
@@ -193,6 +199,7 @@ for txtline in open(xmlfile):
                         isknownline = True
                     elif txtline.find('<redirect />'):
                         pageRedirect = True
+                        isknownline = True
 
                 if not isknownline:
                     try:
@@ -201,10 +208,13 @@ for txtline in open(xmlfile):
                         log.write("204 Unexpected error:" + str(sys.exc_info()[0]) + "Line " + str(linecount) + ": Error Processing Line:\n" + txtline)
 
     except:
-        log.write("207 Wicked Bad error, couldn't process this line even with error catching':" + str(sys.exc_info()[0]) + "Line " + str(linecount))
+        exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
+        log.write("207 Wicked Bad error, couldn't process this line even with error catching':" + str(sys.exc_info()[0]) + "Line " + str(linecount)+ '\n')
+        print str(traceback.print_tb(exceptionTraceback))
+        print "line number: " + str(linecount)
 
 log.write("PROGAM COMPLETE - FINAL STATISTICS:\n")
-log.write("%\n line number " + str(linecount))
+log.write("line number " + str(linecount))
 log.write(" revisions processed:" + str(revcount) + " pages processed: " + str(pagecount) + timeline())
 print "Program Completed at: " + timeline()
 
